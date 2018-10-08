@@ -3,20 +3,26 @@ import socket
 import struct
 import threading
 import time
+from fogNode import FogNode
+from factory import Factory
 
 class Synchronizer():
 
     def __init__(self):
+        address = ('0.0.0.0', 9090)
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.bind(('', 0))
+        self.sock.bind(address)
         self.readers = []
         self.writers = []
         self.reader_buffer = ''
         self.write_buffer = ''
         self.reader_callback = None
         self.quit = False
-        self.broadcast_address = ('<broadcast>', 9090)
+        self.broadcast_address = address
+        self.fog = FogNode()
+        self.factory = Factory()
 
     def _senddata(self, writer):
         sentcount = 0
@@ -42,10 +48,13 @@ class Synchronizer():
                 if chunk == '':
                     raise RuntimeError('socket connection broken')
 
-                data = data + chunk[0]
-                print data
+                response = self.factory.parseData(data)
 
                 # validar pacote. verificar se eh k.a
+                if response.header == 1:
+                    if self.fog.epochHasChanged(response.epoch):
+                        return True # realiza well-known/core
+                
                 # validar pacote. verificar se eh resposta do well-known/core
 
         except:
@@ -87,6 +96,7 @@ def callback(message):
 if __name__ == '__main__':
 
     sync = Synchronizer()
+
     sync.readers.append(sync.sock)
     sync.reader_callback = callback
     listener_thread = threading.Thread(target=sync.cycle)

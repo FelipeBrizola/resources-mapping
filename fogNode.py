@@ -16,5 +16,12 @@ class FogNode():
     def containsResource(self):
         return True
 
+    def epochHasChanged(self, epoch):
+        for fog in self.fog_nodes:
+            if fog.epoch != epoch:
+                return True
+        return False
+
+
 if __name__ == '__main__':
     print 'OK'
