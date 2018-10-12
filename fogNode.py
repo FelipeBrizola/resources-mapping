@@ -4,7 +4,7 @@ class FogNode():
         self.ip = ip
         self.resources = resources
         self.epoch = epoch
-        self.is_replying_keepalive = True
+        self.keepalive_count = 0
         self.parents = parents #FogNode()
 
     def updateResource(self, ip, resources, epoch):

@@ -8,42 +8,32 @@ from factory import Factory
 
 from coapthon.client.helperclient import HelperClient
 
+# protocoltype 16 bits
+# message type = req ou response 16 bits -  ack ou k.a
+# seq number int 64bits
+# epoca int 64bits
+# hash md5 128 bits
+# multicast
 
 class Synchronizer():
 
-    def __init__(self):
-        address = ('0.0.0.0', 9090)
+    def __init__(self, fog):
 
+        address = ('0.0.0.0', 9090)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.sock.bind(address)
-        self.readers = []
-        self.writers = []
-        self.reader_buffer = ''
-        self.write_buffer = ''
-        self.reader_callback = None
-        self.quit = False
         self.broadcast_address = address
-        self.observer()
-        self.fog = None
-
+        self.fog = fog
         self.factory = Factory()
 
-    def senddata(self, writer):
-        sentcount = 0
-        bufferlen = len(self.write_buffer)
+    def senddata(self, data, address):
 
-        while sentcount < bufferlen:
+        sent = self.sock.sendto(data.encode('utf-8'), address)
+        if sent == 0:
+            raise RuntimeError('socket connection broken')
 
-            # enviar k.a a cada 30s
-
-            sent = self.sock.sendto(self.write_buffer[sentcount:], self.broadcast_address)
-            if sent == 0:
-                raise RuntimeError('socket connection broken')
-            sentcount += sent
-            if sentcount == bufferlen:
-                self.write_buffer = ''
-                self.writers.remove(writer)
+        return sent
 
     def recvdata(self):
         datagram = ''
@@ -53,7 +43,14 @@ class Synchronizer():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
+                if address[0] == '127.0.0.1':
+                    return
+
                 response = self.factory.parseData(datagram)
+
+                # ACK
+                if response.header == '3':
+                    self.fog.keepalive_count = 0
 
                 # validar pacote. verificar se eh k.a
                 if response.header == '1':
@@ -78,45 +75,23 @@ class Synchronizer():
                             responseCoap = client.get('/.well-known/core')
                             self.fog.insertResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
 
-                    # TODO: Responder ACK para que quem enviou o k.a saiba que 'eu' ainda estou em operaca
-                            
+                        # responde ACK para qm enviou o ka.
+                        self.senddata('3', address)
 
-        except:
-            pass
-        finally:
-            if not self.reader_callback == None:
-                self.reader_callback(datagram)
+        except socket.timeout as error:
+            print 'timeout'
+            print error.message
+            self.fog.keepalive_count += 1
 
-    def cycle(self):
-        try:
-            self._stop = False
-            self.sock.settimeout(1)
-
-            while self._stop == False:
-                rlist, wlist, [] = select.select(self.readers, self.writers, [], 1)
-
-                while len(rlist) > 0:
-                    self.recvdata()
-                    rlist.pop()
-
-                for writer in wlist:
-                    self.senddata(writer)
-
-        except Exception as e:
-            print 'An error occurred in Synchronizer.cycle()\n' + str(e)
-
-    def close(self):
-        try:
+        except Exception as error:
             self.sock.close()
-            self._stop = True
-        except Exception as e:
-            print('An error occurred in Listener.close():\n' + str(e))
 
     def observer(self):
         # busca em coapserver os proprios recursos
         # frequentemente realizar esse request para se monitorar.
-        # caso haja alteracoes nos recursos, incrementar epoca
-        # provavelmente precise colocar numa thread
+        # caso haja alteracoes nos recursos, incrementar epoca        
+
+        print 'observer'
         client = HelperClient(server=('127.0.0.1', 5683))
         responseCoap = client.get('/.well-known/core')
 
@@ -128,28 +103,19 @@ class Synchronizer():
         time.sleep(10)
         self.observer()
 
-
-
-def callback(message):
-        print 'callback ---'
-        print(message)
-        print 'callback ---'
-
+    def keepalive(self):
+        print 'send keepalive'
+        self.senddata('12', self.broadcast_address)
+        time.sleep(10)
+        self.keepalive()
 
 if __name__ == '__main__':
-
-    sync = Synchronizer()
+    fognode = FogNode()
+    sync = Synchronizer(fognode)
     
-    sync.readers.append(sync.sock)
-    sync.reader_callback = callback
-    listener_thread = threading.Thread(target=sync.cycle)
-    listener_thread.start()
-    sync.readers.append(sync.sock)
+    threading.Thread(target=sync.recvdata).start()
+    threading.Thread(target=sync.keepalive).start()
+    threading.Thread(target=sync.observer).start()
 
-    # time.sleep(3)
-    # sync.write_buffer = '12'
-    # sync.writers.append(sync.sock)
-
-    # Wait for a timeout period (in case of slow resp) before closing
-    time.sleep(20)
-    sync.close()
+    while True:
+        time.sleep(1)
