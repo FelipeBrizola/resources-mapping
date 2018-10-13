@@ -43,17 +43,17 @@ class Synchronizer():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
-                if address[0] == '127.0.0.1':
-                    return
+                response = self.factory.parse_response(datagram)
 
-                response = self.factory.parseData(datagram)
+                # if address[0] == '127.0.0.1':
+                #     return
 
-                # ACK
-                if response.header == '3':
+                # reseta contador - ACK
+                if response.messagetype == 'ack':
                     self.fog.keepalive_count = 0
 
                 # validar pacote. verificar se eh k.a
-                if response.header == '1':
+                if response.messagetype == 'keepalive':
 
                         # valida se deve inserir novo nodo ou atualizar
                         if self.fog.containsResource(ip=address[0]):
@@ -76,7 +76,8 @@ class Synchronizer():
                             self.fog.insertResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
 
                         # responde ACK para qm enviou o ka.
-                        self.senddata('3', address)
+                        datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='ack')
+                        self.senddata(datagram, address)
 
         except socket.timeout as error:
             print 'timeout'
@@ -105,7 +106,8 @@ class Synchronizer():
 
     def keepalive(self):
         print 'send keepalive'
-        self.senddata('12', self.broadcast_address)
+        datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='keepalive')
+        self.senddata(datagram, self.broadcast_address)
         time.sleep(10)
         self.keepalive()
 

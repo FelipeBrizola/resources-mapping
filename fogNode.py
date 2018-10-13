@@ -1,11 +1,12 @@
 class FogNode():
     
-    def __init__(self, parents=[], resources=[], ip='', epoch=0):
+    def __init__(self, parents=[], resources=[], ip='', epoch=0, seq_number=0):
         self.ip = ip
         self.resources = resources
         self.epoch = epoch
         self.keepalive_count = 0
         self.parents = parents #FogNode()
+        self.seq_number = seq_number
 
     def updateResource(self, ip, resources, epoch):
         fog = self.getNodeByIp(ip)
