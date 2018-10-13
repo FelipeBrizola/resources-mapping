@@ -43,10 +43,10 @@ class Synchronizer():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
-                response = self.factory.parse_response(datagram)
+                if address[0] == '127.0.0.1':
+                    return
 
-                # if address[0] == '127.0.0.1':
-                #     return
+                response = self.factory.parse_response(datagram)
 
                 # reseta contador - ACK
                 if response.messagetype == 'ack':
