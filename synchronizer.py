@@ -19,11 +19,10 @@ class Synchronizer():
 
     def __init__(self, fog):
 
-        address = ('0.0.0.0', 9090)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.bind(address)
-        self.broadcast_address = address
+        self.sock.bind(('', 9090))
+        self.broadcast_address = ('255.255.255.255', 9090)
         self.fog = fog
         self.factory = Factory()
 
@@ -44,7 +43,7 @@ class Synchronizer():
                     raise RuntimeError('socket connection broken')
 
                 if address[0] == '127.0.0.1':
-                    return
+                    continue
 
                 response = self.factory.parse_response(datagram)
 
@@ -101,7 +100,7 @@ class Synchronizer():
         else:
             self.fog.checkMyResources(responseCoap.payload)
 
-        time.sleep(10)
+        time.sleep(60)
         self.observer()
 
     def keepalive(self):
