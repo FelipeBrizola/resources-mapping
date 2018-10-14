@@ -28,7 +28,7 @@ class Synchronizer():
 
     def senddata(self, data, address):
 
-        sent = self.sock.sendto(data.encode('utf-8'), address)
+        sent = self.sock.sendto(data, address)
         if sent == 0:
             raise RuntimeError('socket connection broken')
 
@@ -42,7 +42,7 @@ class Synchronizer():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
-                if address[0] == '127.0.0.1':
+                if address[0] == '192.168.1.116': #myself
                     continue
 
                 response = self.factory.parse_response(datagram)
@@ -71,7 +71,11 @@ class Synchronizer():
                             # utiliza epoca do recurso que foi recebido por broadcast
                             # se houve alteracoes(inclusao de novo nodo). realiza requisicao coap
                             client = HelperClient(server=(address[0], 5683))
+
+                            # tratar timeout
                             responseCoap = client.get('/.well-known/core')
+                            if responseCoap == None:
+                                pass
                             self.fog.insertResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
 
                         # responde ACK para qm enviou o ka.
