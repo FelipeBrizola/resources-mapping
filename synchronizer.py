@@ -42,7 +42,7 @@ class Synchronizer():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
-                if address[0] == '192.168.1.116': #myself
+                if address[0] == self.fog.ip: #myself
                     continue
 
                 response = self.factory.parse_response(datagram)
@@ -115,7 +115,7 @@ class Synchronizer():
         self.keepalive()
 
 if __name__ == '__main__':
-    fognode = FogNode()
+    fognode = FogNode(ip=socket.gethostbyname(socket.gethostname()))
     sync = Synchronizer(fognode)
     
     threading.Thread(target=sync.recvdata).start()
