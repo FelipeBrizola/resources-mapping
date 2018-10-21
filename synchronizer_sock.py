@@ -15,8 +15,6 @@ class Client():
         self.local_address = (socket.gethostbyname(socket.gethostname()), 5001)
 
     def senddata(self, data, address):
-        print data
-        print address
         sent = self.sock.sendto(data, address)
         if sent == 0:
             raise RuntimeError('socket connection broken')
@@ -32,6 +30,7 @@ class Client():
                 if address == '':
                     raise RuntimeError('socket connection broken')
 
+                print datagram
                 return datagram
 
         except socket.timeout as error:

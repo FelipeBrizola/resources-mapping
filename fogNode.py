@@ -56,9 +56,11 @@ class FogNode():
         stringbuilder = ''
         stringbuilder += 'MY IP: ' + self.ip + '\n'
         stringbuilder += 'MY RESOURCES: ' + str(self.resources) + '\n'
+        stringbuilder += 'MY EPOCH: ' + str(self.epoch) + '\n'
         for parent in self.parents:
             stringbuilder += '    IP: ' + parent.ip + '\n'
-            stringbuilder += '    RESOURCES: ' + parent.resources + '\n'
+            stringbuilder += '    RESOURCES: ' + str(parent.resources) + '\n'
+            stringbuilder += '    EPOCH: ' + str(parent.epoch) + '\n'
 
         return stringbuilder
 

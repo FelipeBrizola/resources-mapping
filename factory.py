@@ -42,7 +42,7 @@ class Response():
     def __init__(self, protocoltype, messagetype, seq_number, epoch, hash):
         self.protocoltype = protocoltype
         self.seq_number = seq_number
-        self.epoch = epoch
+        self.epoch = unpack('Q', epoch)[0]
         self.hash = hash
 
         if messagetype == '\x00\x14':
