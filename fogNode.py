@@ -1,3 +1,5 @@
+import copy
+
 class FogNode():
     
     def __init__(self, parents=[], resources=[], ip='', epoch=0, seq_number=0):
@@ -22,12 +24,12 @@ class FogNode():
         fog = self.getNodeByIp(ip)
 
         if fog == None:
-            self.parents.append(FogNode(resources=resources, ip=ip, epoch=epoch))
+            newfognode = copy.deepcopy(FogNode(resources=resources, ip=ip, epoch=epoch))
+            self.parents.append(newfognode)
             return True
 
         return False
             
-
     def containsResource(self, ip):
         fog = self.getNodeByIp(ip)
         if fog != None:
@@ -50,6 +52,15 @@ class FogNode():
 
         return False
 
+    def printResources(self):
+        stringbuilder = ''
+        stringbuilder += 'MY IP: ' + self.ip + '\n'
+        stringbuilder += 'MY RESOURCES: ' + str(self.resources) + '\n'
+        for parent in self.parents:
+            stringbuilder += '    IP: ' + parent.ip + '\n'
+            stringbuilder += '    RESOURCES: ' + parent.resources + '\n'
+
+        return stringbuilder
 
     def getNodeByIp(self, ip):
         for fog in self.parents:

@@ -3,6 +3,8 @@ import socket
 import struct
 import threading
 import time
+import sys
+import getopt
 from fogNode import FogNode
 from factory import Factory
 
@@ -96,13 +98,12 @@ class Synchronizer():
         # caso haja alteracoes nos recursos, incrementar epoca        
 
         print 'observer'
-        client = HelperClient(server=('127.0.0.1', 5683))
+        client = HelperClient(server=(self.fog.ip, 5683))
         responseCoap = client.get('/.well-known/core')
 
-        if self.fog == None:
-            self.fog = FogNode(resources=responseCoap.payload, ip='127.0.0.1')
-        else:
-            self.fog.checkMyResources(responseCoap.payload)
+        # atualiza epoca se estiver diferente
+        self.fog.checkMyResources(responseCoap.payload)
+        self.fog.resources = responseCoap.payload
 
         time.sleep(60)
         self.observer()
@@ -114,13 +115,39 @@ class Synchronizer():
         time.sleep(10)
         self.keepalive()
 
+    def worker(self):
+
+        worker_server_address = (socket.gethostbyname(socket.gethostname()), 5001)
+        sock_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock_worker.bind(worker_server_address)
+
+        print 'sync worker running on address: ' + str(worker_server_address[0]) + ' and port ' + str(worker_server_address[1])
+
+        while True:
+            try:
+                data, client_address = sock_worker.recvfrom(1024)
+                operation = data[0]
+
+                if operation == 'p':
+                    sock_worker.sendto(self.fog.printResources(), client_address)  
+                    continue
+                else:
+                    sock_worker.sendto('Missing params', client_address)
+                    continue
+
+            except socket.timeout:
+                print 'TIMEOUT'
+                continue    
+    
 if __name__ == '__main__':
+
     fognode = FogNode(ip=socket.gethostbyname(socket.gethostname()))
     sync = Synchronizer(fognode)
     
     threading.Thread(target=sync.recvdata).start()
     threading.Thread(target=sync.keepalive).start()
     threading.Thread(target=sync.observer).start()
+    threading.Thread(target=sync.worker).start()
 
     while True:
         time.sleep(1)
