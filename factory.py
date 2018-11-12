@@ -31,7 +31,7 @@ class Factory():
         elif message_type == 'keepalive':
             message_type = 0x15
 
-        stream = pack('>hhQQ',protocoltype, message_type, seq_number, epoch)
+        stream = pack('!hhQQ',protocoltype, message_type, seq_number, epoch)
         hash = md5.new(stream).hexdigest()
         return stream + hash
         
@@ -42,7 +42,7 @@ class Response():
     def __init__(self, protocoltype, messagetype, seq_number, epoch, hash):
         self.protocoltype = protocoltype
         self.seq_number = seq_number
-        self.epoch = unpack('>Q', epoch)[0]
+        self.epoch = unpack('!Q', epoch)[0]
         self.hash = hash
 
         if messagetype == '\x00\x14':

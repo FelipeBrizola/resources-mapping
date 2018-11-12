@@ -69,9 +69,9 @@ class Synchronizer():
                                 # utiliza epoca do recurso que foi recebido por broadcast
                                 self.fog.updateResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
 
+                        # utiliza epoca do recurso que foi recebido por broadcast
+                        # se houve alteracoes(inclusao de novo nodo). realiza requisicao coap
                         else:
-                            # utiliza epoca do recurso que foi recebido por broadcast
-                            # se houve alteracoes(inclusao de novo nodo). realiza requisicao coap
                             client = HelperClient(server=(address[0], 5683))
 
                             # tratar timeout
