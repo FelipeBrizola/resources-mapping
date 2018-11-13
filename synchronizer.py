@@ -21,12 +21,45 @@ class Synchronizer():
 
     def __init__(self, fog):
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.bind(('', 9090))
-        self.broadcast_address = ('255.255.255.255', 9090)
+        # self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # self.sock.bind(('', 9090))
+        # self.broadcast_address = ('255.255.255.255', 9090)
+
+        self.broadcast_address = ('239.255.4.3', 1234)
+        self.sock = self.create_socket('239.255.4.3', 1234)
         self.fog = fog
         self.factory = Factory()
+
+    def create_socket(self, multicast_ip, port):
+        """
+        Creates a socket, sets the necessary options on it, then binds it. The socket is then returned for use.
+        """
+
+        local_ip = socket.gethostbyname(socket.gethostname())
+
+        # create a UDP socket
+        my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # allow reuse of addresses
+        my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        # set multicast interface to local_ip
+        my_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))
+
+        # Set multicast time-to-live to 2...should keep our multicast packets from escaping the local network
+        my_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+
+        # Construct a membership request...tells router what multicast group we want to subscribe to
+        membership_request = socket.inet_aton(multicast_ip) + socket.inet_aton(local_ip)
+
+        # Send add membership request to socket
+        # See http://www.tldp.org/HOWTO/Multicast-HOWTO-6.html for explanation of sockopts
+        my_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership_request)
+
+        my_socket.bind(('', port))
+        
+        return my_socket
 
     def senddata(self, data, address):
 
@@ -101,19 +134,22 @@ class Synchronizer():
         client = HelperClient(server=(self.fog.ip, 5683))
         responseCoap = client.get('/.well-known/core')
 
+        if responseCoap.payload == None:
+            responseCoap.payload = []
+
         # atualiza epoca se estiver diferente
         self.fog.checkMyResources(responseCoap.payload)
         self.fog.resources = responseCoap.payload
 
-        time.sleep(60)
-        self.observer()
+        time.sleep(20)
+        return self.observer()
 
     def keepalive(self):
         print 'send keepalive'
         datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='keepalive')
         self.senddata(datagram, self.broadcast_address)
         time.sleep(10)
-        self.keepalive()
+        return self.keepalive()
 
     def worker(self):
 

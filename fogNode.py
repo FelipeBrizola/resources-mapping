@@ -10,7 +10,7 @@ class FogNode():
         self.parents = parents #FogNode()
         self.seq_number = seq_number
 
-    def updateResource(self, ip, resources, epoch):
+    def updateResource(self, ip='', resources=[], epoch=0):
         fog = self.getNodeByIp(ip)
 
         if fog != None:
@@ -20,7 +20,7 @@ class FogNode():
 
         return False
 
-    def insertResource(self, ip, resources, epoch):
+    def insertResource(self, ip='', resources=[], epoch=0):
         fog = self.getNodeByIp(ip)
 
         if fog == None:
@@ -54,13 +54,13 @@ class FogNode():
 
     def printResources(self):
         stringbuilder = ''
-        stringbuilder += 'MY IP: ' + self.ip + '\n'
-        stringbuilder += 'MY RESOURCES: ' + str(self.resources) + '\n'
-        stringbuilder += 'MY EPOCH: ' + str(self.epoch) + '\n'
+        stringbuilder += '    MY IP: ' + self.ip + '\n'
+        stringbuilder += '    MY RESOURCES: ' + str(self.resources) + '\n'
+        stringbuilder += '    MY EPOCH: ' + str(self.epoch) + '\n'
         for parent in self.parents:
-            stringbuilder += '    IP: ' + parent.ip + '\n'
-            stringbuilder += '    RESOURCES: ' + str(parent.resources) + '\n'
-            stringbuilder += '    EPOCH: ' + str(parent.epoch) + '\n'
+            stringbuilder += '        IP: ' + parent.ip + '\n'
+            stringbuilder += '        RESOURCES: ' + str(parent.resources) + '\n'
+            stringbuilder += '        EPOCH: ' + str(parent.epoch) + '\n'
 
         return stringbuilder
 
