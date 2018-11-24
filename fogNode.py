@@ -1,14 +1,37 @@
 import copy
 
 class FogNode():
-    
-    def __init__(self, parents=[], resources=[], ip='', epoch=0, seq_number=0):
+
+    def __init__(self, parents=[], resources=[], ip='', epoch=0, seq_number=0, isSendingKeepAlive=False):
         self.ip = ip
         self.resources = resources
         self.epoch = epoch
-        self.keepalive_count = 0
-        self.parents = parents #FogNode()
+        self.isReplyingKeepAlive = True
+        self.parents = parents  # FogNode()
         self.seq_number = seq_number
+        self.isSendingKeepAlive = isSendingKeepAlive
+
+    def ack(self, ip):
+        fog = self.getNodeByIp(ip)
+        if fog != None:
+            fog.isReplyingKeepAlive = True
+            fog.isSendingKeepAlive = False
+
+
+    def sendingKeepAlive(self):
+        for parent in self.parents:
+            parent.isSendingKeepAlive = True
+
+    def removeInactiveNodes(self):
+
+        for parent in self.parents:
+            if parent.isSendingKeepAlive:
+
+                if parent.isReplyingKeepAlive:
+                    parent.isReplyingKeepAlive = False
+                else:
+                    self.parents.remove(parent)
+
 
     def updateResource(self, ip='', resources=[], epoch=0):
         fog = self.getNodeByIp(ip)
@@ -24,12 +47,13 @@ class FogNode():
         fog = self.getNodeByIp(ip)
 
         if fog == None:
-            newfognode = copy.deepcopy(FogNode(resources=resources, ip=ip, epoch=epoch))
+            newfognode = copy.deepcopy(
+                FogNode(resources=resources, ip=ip, epoch=epoch))
             self.parents.append(newfognode)
             return True
 
         return False
-            
+
     def containsResource(self, ip):
         fog = self.getNodeByIp(ip)
         if fog != None:
@@ -57,10 +81,14 @@ class FogNode():
         stringbuilder += '    MY IP: ' + self.ip + '\n'
         stringbuilder += '    MY RESOURCES: ' + str(self.resources) + '\n'
         stringbuilder += '    MY EPOCH: ' + str(self.epoch) + '\n'
+        stringbuilder += '    MY IS_REPLYING_KEEPALIVE: ' + str(self.isReplyingKeepAlive) + '\n'
+        stringbuilder += '    MY IS_SENDING_KEEPALIVE: ' + str(self.isSendingKeepAlive) + '\n'
         for parent in self.parents:
             stringbuilder += '        IP: ' + parent.ip + '\n'
             stringbuilder += '        RESOURCES: ' + str(parent.resources) + '\n'
             stringbuilder += '        EPOCH: ' + str(parent.epoch) + '\n'
+            stringbuilder += '        REPLYING_KEEPALIVE: ' + str(parent.isReplyingKeepAlive) + '\n'
+            stringbuilder += '        IS_SENDING_KEEPALIVE: ' + str(parent.isSendingKeepAlive) + '\n'
 
         return stringbuilder
 
@@ -70,7 +98,3 @@ class FogNode():
                 return fog
 
         return None
-
-
-if __name__ == '__main__':
-    print 'OK'

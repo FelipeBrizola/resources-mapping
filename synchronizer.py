@@ -10,23 +10,11 @@ from factory import Factory
 
 from coapthon.client.helperclient import HelperClient
 
-# protocoltype 16 bits
-# message type = req ou response 16 bits -  ack ou k.a
-# seq number int 64bits
-# epoca int 64bits
-# hash md5 128 bits
-# multicast
-
 class Synchronizer():
 
     def __init__(self, fog):
 
-        # self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        # self.sock.bind(('', 9090))
-        # self.broadcast_address = ('255.255.255.255', 9090)
-
-        self.broadcast_address = ('239.255.4.3', 1234)
+        self.multicast_address = ('239.255.4.3', 1234)
         self.sock = self.create_socket('239.255.4.3', 1234)
         self.fog = fog
         self.factory = Factory()
@@ -82,48 +70,48 @@ class Synchronizer():
 
                 response = self.factory.parse_response(datagram)
 
-                # reseta contador - ACK
+                # validar pacote. verificar se eh ACK
                 if response.messagetype == 'ack':
-                    self.fog.keepalive_count = 0
+                    self.fog.ack(address[0])
 
                 # validar pacote. verificar se eh k.a
-                if response.messagetype == 'keepalive':
+                elif response.messagetype == 'keepalive':
 
-                        # valida se deve inserir novo nodo ou atualizar
-                        if self.fog.containsResource(ip=address[0]):
+                    # valida se deve inserir novo nodo ou atualizar
+                    if self.fog.containsResource(ip=address[0]):
 
-                            # utiliza epoch recebida para validar se houve alteracoes
-                            if self.fog.epochHasChanged(ip=address[0], epoch=response.epoch):
+                        # utiliza epoch recebida para validar se houve alteracoes
+                        if self.fog.epochHasChanged(ip=address[0], epoch=response.epoch):
 
-                                # se houve alteracoes(atualizacao de recurso). realiza requisicao coap
-                                client = HelperClient(server=(address[0], 5683))
-                                responseCoap = client.get('/.well-known/core')
-
-                                # utiliza epoca do recurso que foi recebido por broadcast
-                                self.fog.updateResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
-
-                        # utiliza epoca do recurso que foi recebido por broadcast
-                        # se houve alteracoes(inclusao de novo nodo). realiza requisicao coap
-                        else:
+                            # se houve alteracoes(atualizacao de recurso). realiza requisicao coap
                             client = HelperClient(server=(address[0], 5683))
-
-                            # tratar timeout
                             responseCoap = client.get('/.well-known/core')
-                            if responseCoap == None:
-                                pass
-                            self.fog.insertResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
 
-                        # responde ACK para qm enviou o ka.
-                        datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='ack')
-                        self.senddata(datagram, address)
+                            # utiliza epoca do recurso que foi recebido por broadcast
+                            self.fog.updateResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
+
+                    # utiliza epoca do recurso que foi recebido por broadcast
+                    # se houve alteracoes(inclusao de novo nodo). realiza requisicao coap
+                    else:
+                        client = HelperClient(server=(address[0], 5683))
+
+                        # tratar timeout
+                        responseCoap = client.get('/.well-known/core')
+                        if responseCoap == None:
+                            pass
+                        self.fog.insertResource(ip=responseCoap.source[0], resources=responseCoap.payload, epoch=response.epoch)
+
+                    # responde ACK para qm enviou o ka.
+                    datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='ack')
+                    self.senddata(datagram, address)
 
         except socket.timeout as error:
             print 'timeout'
             print error.message
-            self.fog.keepalive_count += 1
 
         except Exception as error:
-            self.sock.close()
+            print error.message
+            # self.sock.close()
 
     def observer(self):
         # busca em coapserver os proprios recursos
@@ -141,14 +129,18 @@ class Synchronizer():
         self.fog.checkMyResources(responseCoap.payload)
         self.fog.resources = responseCoap.payload
 
-        time.sleep(20)
+        time.sleep(10)
         return self.observer()
 
     def keepalive(self):
         print 'send keepalive'
         datagram = self.factory.build_request(epoch=self.fog.epoch, seq_number=self.fog.seq_number, message_type='keepalive')
-        self.senddata(datagram, self.broadcast_address)
-        time.sleep(10)
+
+        self.fog.sendingKeepAlive()
+        self.senddata(datagram, self.multicast_address)
+        time.sleep(30)
+        self.fog.removeInactiveNodes()
+
         return self.keepalive()
 
     def worker(self):
@@ -181,8 +173,9 @@ if __name__ == '__main__':
     sync = Synchronizer(fognode)
     
     threading.Thread(target=sync.recvdata).start()
-    threading.Thread(target=sync.keepalive).start()
     threading.Thread(target=sync.observer).start()
+    time.sleep(5)
+    threading.Thread(target=sync.keepalive).start()
     threading.Thread(target=sync.worker).start()
 
     while True:
